@@ -60,6 +60,10 @@ class ClanBattle:
         '查3': 23,
         '查4': 24,
         '查5': 25,
+        '下树': 31,
+        '下班': 91,
+        '查询': 92,
+        '提醒': 92,
     }
 
     Server = {
@@ -437,23 +441,17 @@ class ClanBattle:
         # 如果当前正在挑战，则取消挑战
         if user.qqid == group.challenging_member_qq_id:
             group.challenging_member_qq_id = None
-        # 如果当前正在挂树，则取消挂树
-        Clan_subscribe.delete().where(
-            Clan_subscribe.gid == group_id,
-            Clan_subscribe.qqid == qqid,
-            Clan_subscribe.subscribe_item == 0,
-        ).execute()
 
         challenge.save()
         group.save()
 
         nik = user.nickname or user.qqid
         if defeat:
-            msg = '{}对boss造成了{:,}点伤害，击败了boss\n（今日第{}刀，{}）'.format(
+            msg = '{}对boss造成了{:,}点伤害，击败了boss（今日第{}刀，{}）'.format(
                 nik, health_before, finished+1, '尾余刀' if is_continue else '收尾刀'
             )
         else:
-            msg = '{}对boss造成了{:,}点伤害\n（今日第{}刀，{}）'.format(
+            msg = '{}对boss造成了{:,}点伤害（今日第{}刀，{}）'.format(
                 nik, damage, finished+1, '剩余刀' if is_continue else '完整刀'
             )
         status = BossStatus(
@@ -463,6 +461,21 @@ class ClanBattle:
             0,
             msg,
         )
+
+        # 如果当前正在挂树，则取消挂树
+        subscribe = Clan_subscribe.get_or_none(
+            gid=group_id,
+            qqid=qqid,
+            subscribe_item=0,
+        )
+        if subscribe is not None:
+            Clan_subscribe.delete().where(
+                Clan_subscribe.gid == group_id,
+                Clan_subscribe.qqid == qqid,
+                Clan_subscribe.subscribe_item == 0,
+            ).execute()
+            status = str(status) + '\n' + nik +'已下树'
+
         self._boss_status[group_id].set_result(
             (self._boss_data_dict(group), msg)
         )
@@ -728,7 +741,7 @@ class ClanBattle:
         if send_private_msg:
             asyncio.ensure_future(self.send_private_remind(
                 member_list=member_list,
-                content=f'{sender_name}提醒您及时完成今日出刀',
+                content=f'{sender_name}提醒及时完成今日出刀',
             ))
         else:
             message = ' '.join((
@@ -736,7 +749,7 @@ class ClanBattle:
             ))
             asyncio.ensure_future(self.api.send_group_msg(
                 group_id=group_id,
-                message=message+f'\n=======\n{sender_name}提醒您及时完成今日出刀',
+                message=message+f'\n=======\n{sender_name}提醒及时完成今日出刀',
             ))
 
     def add_subscribe(self, group_id: Groupid, qqid: QQid, boss_num, message=None):
@@ -763,8 +776,8 @@ class ClanBattle:
         )
         if subscribe is not None:
             if boss_num == 0:
-                raise UserError('您已经在树上了')
-            raise UserError('您已经预约过了')
+                raise UserError('已经在树上了')
+            raise UserError('已经预约过了')
         if (boss_num == 0 and group.challenging_member_qq_id == qqid):
             # 如果挂树时当前正在挑战，则取消挑战
             group.challenging_member_qq_id = None
@@ -773,6 +786,48 @@ class ClanBattle:
             gid=group_id,
             qqid=qqid,
             subscribe_item=boss_num,
+            message=message,
+        )
+
+    def up_tree(self, group_id: Groupid, qqid: QQid, dmage, message=None):
+        """
+        up tree a boss, get notification when boss is defeated.
+
+        subscribe for all boss
+
+        Args:
+            group_id: group id
+            qqid: qq id of subscriber
+        """
+        group = Clan_group.get_or_none(group_id=group_id)
+        if group is None:
+            raise GroupNotExist
+        user = User.get_or_none(qqid=qqid)
+        if user is None:
+            raise GroupError('请先加入公会')
+        subscribe = Clan_subscribe.get_or_none(
+            gid=group_id,
+            qqid=qqid,
+            subscribe_item=0,
+        )
+        nik = self._get_nickname_by_qqid(qqid)
+        if subscribe is not None:
+            raise UserError(nik + '已经在树上了')
+        if (group.challenging_member_qq_id == qqid):
+            # 如果挂树时当前正在挑战，则取消挑战
+            group.challenging_member_qq_id = None
+            group.save()
+        if dmage > 0:
+            if message == None:
+                message = '伤害' + str(dmage)
+            else:
+                message = '伤害' + str(dmage) + '：' + message
+        elif message != None:
+            message = '：' + message
+        subscribe = Clan_subscribe.create(
+            gid=group_id,
+            qqid=qqid,
+            subscribe_item=0,
             message=message,
         )
 
@@ -845,7 +900,7 @@ class ClanBattle:
         if notice:
             asyncio.ensure_future(self.api.send_group_msg(
                 group_id=group_id,
-                message='boss已被击败\n'+'\n'.join(notice),
+                message='boss已被击败，以下成员已下树：\n'+'\n'.join(notice),
             ))
 
     def apply_for_challenge(self,
@@ -970,7 +1025,7 @@ class ClanBattle:
             return (membership.last_save_slot == today)
         if todaystatus:
             if membership.last_save_slot == today:
-                raise UserError('您今天已经存在SL记录了')
+                raise UserError('今天已经存在SL记录了')
             membership.last_save_slot = today
 
             # 如果当前正在挑战，则取消挑战
@@ -985,7 +1040,7 @@ class ClanBattle:
             ).execute()
         else:
             if membership.last_save_slot != today:
-                raise UserError('您今天没有SL记录')
+                raise UserError('今天没有SL记录')
             membership.last_save_slot = 0
         membership.save()
 
@@ -1321,21 +1376,42 @@ class ClanBattle:
             _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
             return '预约成功'
         elif match_num == 11:  # 挂树
-            match = re.match(r'^挂树 *(?:[\:：](.*))?$', cmd)
+            match = re.match(r'^挂树 *((伤害)* *\d+[wWkK万]?)? *(?:\[CQ:at,qq=(\d+)\])? *(?:[\:：](.*))?$', cmd)
             if not match:
                 return
-            extra_msg = match.group(1)
+            behalf = match.group(3) and int(match.group(3))
+            if behalf is not None:
+                qqid = behalf
+            else:
+                qqid = user_id
+            extra_msg = match.group(4)
             if isinstance(extra_msg, str):
                 extra_msg = extra_msg.strip()
                 if not extra_msg:
                     extra_msg = None
+            dmage_msg = match.group(1)
             try:
-                self.add_subscribe(group_id, user_id, 0, extra_msg)
+                if dmage_msg:
+                    dmage_msg = dmage_msg.replace('伤害', '').replace(' ', '')
+                    match = re.search(r"^(\d+)([wWkK万])?$", dmage_msg)
+                    dmage = int(match.group(1))
+                    if match.group(2) is not None:
+                        if match.group(2) == "w" or match.group(2) == "W" or match.group(2) == "万":
+                            dmage *= 10000
+                        else:
+                            dmage *= 1000
+                    self.up_tree(group_id, qqid, dmage, extra_msg)
+                else:
+                    self.up_tree(group_id, qqid, 0, extra_msg)
             except ClanBattleError as e:
-                _logger.info('群聊 失败 {} {} {}'.format(user_id, group_id, cmd))
+                _logger.info('群聊 失败 {} {} {}'.format(qqid, group_id, cmd))
                 return str(e)
-            _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
-            return '已挂树'
+            _logger.info('群聊 成功 {} {} {}'.format(qqid, group_id, cmd))
+            nik = self._get_nickname_by_qqid(qqid)
+            if dmage_msg:
+                return nik + '挂树了，暂停伤害为' + dmage_msg.replace('伤害', '').replace(' ', '')
+            else:
+                return nik + '挂树了'
         elif match_num == 12:  # 申请/锁定
             if cmd == '申请出刀':
                 appli_type = 1
@@ -1375,7 +1451,7 @@ class ClanBattle:
                 event = f'预约{b}号boss'
             counts = self.cancel_subscribe(group_id, user_id, boss_num)
             if counts == 0:
-                return '您没有'+event
+                return '没有'+event
                 _logger.info('群聊 失败 {} {} {}'.format(user_id, group_id, cmd))
             _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
             return '已取消'+event
@@ -1423,12 +1499,82 @@ class ClanBattle:
             subscribers = self.get_subscribe_list(group_id, match_num-20)
             if not subscribers:
                 return '没有人'+beh
-            reply = beh+'的成员：\n'
-            for m in subscribers:
-                reply += '\n'+self._get_nickname_by_qqid(m['qqid'])
-                if m.get('message'):
-                    reply += '：' + m['message']
+            reply = beh+'人数' + str(len(subscribers)) + '：'
+            if match_num == 20:
+                dmage = 0
+                for m in subscribers:
+                    reply += '\n'+self._get_nickname_by_qqid(m['qqid'])
+                    if m.get('message'):
+                        match = re.match(r'^伤害([0-9]+)($|：(.*))', m['message'])
+                        if match:
+                            dmage += int(match.group(1))
+                        reply += m['message']
+                reply = '全树伤害' + str(dmage) + '，' + reply
+            else:
+                for m in subscribers:
+                    reply += '\n'+self._get_nickname_by_qqid(m['qqid'])
+                    if m.get('message'):
+                        reply += m['message']
             return reply
+        elif match_num == 31: # 下树
+            match = re.match(r'^下树 *(?:\[CQ:at,qq=(\d+)\])?$', cmd)
+            behalf = match.group(1) and int(match.group(1))
+            if behalf is not None:
+                qqid = behalf
+            else:
+                qqid = user_id
+            nik = self._get_nickname_by_qqid(qqid)
+            subscribe = Clan_subscribe.get_or_none(
+                gid=group_id,
+                qqid=qqid,
+                subscribe_item=0,
+            )
+            if subscribe is not None:
+                Clan_subscribe.delete().where(
+                    Clan_subscribe.gid == group_id,
+                    Clan_subscribe.qqid == qqid,
+                    Clan_subscribe.subscribe_item == 0,
+                ).execute()
+                return nik +'已下树'
+            else:
+                return nik + '不在树上'
+        elif match_num == 91: # 下班
+            group = Clan_group.get_or_none(group_id=group_id)
+            if group is None:
+                return '本群未初始化，请发送“创建X服公会”'
+            d, t = pcr_datetime(area=group.game_server)
+            challenges = Clan_challenge.select().where(
+                Clan_challenge.gid == group_id,
+                Clan_challenge.qqid == user_id,
+                Clan_challenge.bid == group.battle_id,
+                Clan_challenge.challenge_pcrdate == d,
+            ).order_by(Clan_challenge.cid)
+            challenges = list(challenges)
+            finished = sum(bool(c.boss_health_ramain or c.is_continue)
+                        for c in challenges)
+            user = User.get_or_create(
+                qqid=user_id,
+                defaults={
+                    'clan_group_id': group_id,
+                }
+            )[0]
+            nik = user.nickname or user.qqid
+            if finished == 3:
+                return nik + "今日已出满3刀下班了"
+            elif finished > 3:
+                return nik + "今日已出" + str(finished) + "刀，真实社畜，成功下班"
+            else:
+                return nik + "今日只出了" + str(finished) + "刀，不许下班"
+        elif match_num == 92: # 查询下班/提醒出刀
+            if cmd == '查询下班' or cmd == '提醒出刀':
+                url = urljoin(
+                    self.setting['public_address'],
+                    '{}clan/{}/progress/'.format(
+                        self.setting['public_basepath'],
+                        group_id
+                    )
+                )
+                return '请在面板中使用“提醒出刀”功能：' + url
 
     def register_routes(self, app: Quart):
 

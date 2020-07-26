@@ -17,8 +17,7 @@ class BossStatus:
 
     def __str__(self):
         summary = (
-            '现在{}周目，{}号boss\n'
-            '生命值{:,}'
+            '现在{}周目，{}号boss，生命值{:,}'
         ).format(self.cycle, self.num, self.health)
         # if self.challenger:
         #     summary += '\n' + '{}正在挑战boss'.format(self.challenger)

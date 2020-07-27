@@ -1292,7 +1292,7 @@ class ClanBattle:
         elif match_num == 5:  # 尾刀
             match = re.match(
                 r'^尾刀 ?(?:\[CQ:at,qq=(\d+)\])? *(昨[日天])? *(?:[\:：](.*))?$', cmd)
-            if match is None:
+            if not match:
                 return
             behalf = match.group(1) and int(match.group(1))
             previous_day = bool(match.group(2))
@@ -1518,6 +1518,8 @@ class ClanBattle:
             return reply
         elif match_num == 31: # 下树
             match = re.match(r'^下树 *(?:\[CQ:at,qq=(\d+)\])?$', cmd)
+            if not match:
+                return
             behalf = match.group(1) and int(match.group(1))
             if behalf is not None:
                 qqid = behalf

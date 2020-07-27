@@ -1518,6 +1518,8 @@ class ClanBattle:
             return reply
         elif match_num == 31: # 下树
             match = re.match(r'^下树 *(?:\[CQ:at,qq=(\d+)\])?$', cmd)
+            if not match:
+                return
             behalf = match.group(1) and int(match.group(1))
             if behalf is not None:
                 qqid = behalf

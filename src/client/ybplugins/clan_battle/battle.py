@@ -54,6 +54,8 @@ class ClanBattle:
         '后台': 15,
         'sl': 16,
         'SL': 16,
+        'sL': 16,
+        'Sl': 16,
         '查树': 20,
         '查1': 21,
         '查2': 22,
@@ -1478,18 +1480,23 @@ class ClanBattle:
             )
             return f'公会战面板：\n{url}\n建议添加到浏览器收藏夹或桌面快捷方式'
         elif match_num == 16:  # SL
-            nik = self._get_nickname_by_qqid(user_id)
-            if len(cmd) == 2:
+            match = re.search(r'[sl|SL|sL|Sl] *[\?|？]? *(?:\[CQ:at,qq=(\d+)\]) *$', cmd)
+            if match:
+                qqid = match.group(1) and int(match.group(1))
+            else:
+                qqid = user_id
+            nik = self._get_nickname_by_qqid(qqid)
+            if len(cmd) == 2 or re.search(r'[sl|SL|sL|Sl] *(?:\[CQ:at,qq=(\d+)\]) *$', cmd):
                 try:
-                    self.save_slot(group_id, user_id)
+                    self.save_slot(group_id, qqid)
                 except ClanBattleError as e:
                     _logger.info('群聊 失败 {} {} {}'.format(
-                        user_id, group_id, cmd))
+                        qqid, group_id, cmd))
                     return str(e)
-                _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
+                _logger.info('群聊 成功 {} {} {}'.format(qqid, group_id, cmd))
                 return nik + '已记录SL，如有挂树则已下树'
-            elif cmd[2:].strip() in ['?', '？']:
-                sl_ed = self.save_slot(group_id, user_id, only_check=True)
+            elif cmd[2:].strip() in ['?', '？'] or match:
+                sl_ed = self.save_slot(group_id, qqid, only_check=True)
                 if sl_ed:
                     return nik + '今日已使用SL'
                 else:

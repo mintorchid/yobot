@@ -1512,13 +1512,36 @@ class ClanBattle:
             reply = beh+'人数' + str(len(subscribers)) + '：'
             if match_num == 20:
                 dmage = 0
+                name_list = []
+                dmage_list = []
+                message_list = []
                 for m in subscribers:
-                    reply += '\n'+self._get_nickname_by_qqid(m['qqid'])
+                    name_list.append(self._get_nickname_by_qqid(m['qqid']))
                     if m.get('message'):
+                        message_list.append(m['message'])
                         match = re.match(r'^伤害([0-9]+)($|：(.*))', m['message'])
                         if match:
                             dmage += int(match.group(1))
-                        reply += m['message']
+                            dmage_list.append(int(match.group(1)))
+                        else:
+                            dmage_list.append(0)
+                    else:
+                        message_list.append('')
+                        dmage_list.append(0)
+                for i in range(len(name_list) - 1):
+                    for j in range(len(name_list) - i - 1):
+                        if (dmage_list[j] < dmage_list[j + 1]):
+                            temp = dmage_list[j]
+                            dmage_list[j] = dmage_list[j + 1]
+                            dmage_list[j + 1] = temp
+                            temp2 = name_list[j]
+                            name_list[j] = name_list[j + 1]
+                            name_list[j + 1] = temp2
+                            temp2 = message_list[j]
+                            message_list[j] = message_list[j + 1]
+                            message_list[j + 1] = temp2
+                for i in range(len(name_list)):
+                    reply += '\n' + name_list[i] + message_list[i]
                 reply = '全树伤害' + str(dmage) + '，' + reply
             else:
                 for m in subscribers:

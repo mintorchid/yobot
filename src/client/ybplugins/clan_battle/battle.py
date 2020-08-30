@@ -1487,7 +1487,7 @@ class ClanBattle:
                         user_id, group_id, cmd))
                     return str(e)
                 _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
-                return nik + '已记录SL'
+                return nik + '已记录SL，如有挂树则已下树'
             elif cmd[2:].strip() in ['?', '？']:
                 sl_ed = self.save_slot(group_id, user_id, only_check=True)
                 if sl_ed:

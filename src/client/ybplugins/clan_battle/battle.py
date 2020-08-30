@@ -46,6 +46,7 @@ class ClanBattle:
         '查刀': 9,
         '预约': 10,
         '挂树': 11,
+        '上树': 11,
         '申请': 12,
         '锁定': 12,
         '取消': 13,
@@ -1379,7 +1380,7 @@ class ClanBattle:
             _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
             return '预约成功'
         elif match_num == 11:  # 挂树
-            match = re.match(r'^挂树 *((伤害)* *\d+[wWkK万]?)? *(?:\[CQ:at,qq=(\d+)\])? *(?:[\:：](.*))?$', cmd)
+            match = re.match(r'^[挂上]树 *((伤害)* *\d+[wWkK万]?)? *(?:\[CQ:at,qq=(\d+)\])? *(?:[\:：](.*))?$', cmd)
             if not match:
                 return
             behalf = match.group(3) and int(match.group(3))

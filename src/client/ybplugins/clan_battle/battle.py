@@ -1023,9 +1023,10 @@ class ClanBattle:
         today, _ = pcr_datetime(group.game_server)
         if only_check:
             return (membership.last_save_slot == today)
+        nik = self._get_nickname_by_qqid(qqid)
         if todaystatus:
             if membership.last_save_slot == today:
-                raise UserError('今天已经存在SL记录了')
+                raise UserError(nik + '今天已经存在SL记录了')
             membership.last_save_slot = today
 
             # 如果当前正在挑战，则取消挑战
@@ -1040,7 +1041,7 @@ class ClanBattle:
             ).execute()
         else:
             if membership.last_save_slot != today:
-                raise UserError('今天没有SL记录')
+                raise UserError(nik + '今天没有SL记录')
             membership.last_save_slot = 0
         membership.save()
 
@@ -1477,6 +1478,7 @@ class ClanBattle:
             )
             return f'公会战面板：\n{url}\n建议添加到浏览器收藏夹或桌面快捷方式'
         elif match_num == 16:  # SL
+            nik = self._get_nickname_by_qqid(user_id)
             if len(cmd) == 2:
                 try:
                     self.save_slot(group_id, user_id)
@@ -1485,13 +1487,13 @@ class ClanBattle:
                         user_id, group_id, cmd))
                     return str(e)
                 _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
-                return '已记录SL'
+                return nik + '已记录SL'
             elif cmd[2:].strip() in ['?', '？']:
                 sl_ed = self.save_slot(group_id, user_id, only_check=True)
                 if sl_ed:
-                    return '今日已使用SL'
+                    return nik + '今日已使用SL'
                 else:
-                    return '今日未使用SL'
+                    return nik + '今日未使用SL'
         elif 20 <= match_num <= 25:
             if len(cmd) != 2:
                 return

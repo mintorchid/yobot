@@ -1261,20 +1261,37 @@ class ClanBattle:
         elif match_num == 4:  # 报刀
             match = re.match(
                 r'^报刀 ?(\d+)([Ww万Kk千])? *(?:\[CQ:at,qq=(\d+)\])? *(昨[日天])? *(?:[\:：](.*))?$', cmd)
+            match2 = re.match(
+                r'^报刀 ?(?:\[CQ:at,qq=(\d+)\])? *(\d+)([Ww万Kk千])? *(昨[日天])? *(?:[\:：](.*))?$', cmd)
             if not match:
-                return
-            unit = {
-                'W': 10000,
-                'w': 10000,
-                '万': 10000,
-                'k': 1000,
-                'K': 1000,
-                '千': 1000,
-            }.get(match.group(2), 1)
-            damage = int(match.group(1)) * unit
-            behalf = match.group(3) and int(match.group(3))
-            previous_day = bool(match.group(4))
-            extra_msg = match.group(5)
+                if not match2:
+                    return
+                else:
+                    unit = {
+                        'W': 10000,
+                        'w': 10000,
+                        '万': 10000,
+                        'k': 1000,
+                        'K': 1000,
+                        '千': 1000,
+                    }.get(match2.group(3), 1)
+                    damage = int(match2.group(2)) * unit
+                    behalf = match2.group(1) and int(match2.group(1))
+                    previous_day = bool(match2.group(4))
+                    extra_msg = match2.group(5)
+            else:
+                unit = {
+                    'W': 10000,
+                    'w': 10000,
+                    '万': 10000,
+                    'k': 1000,
+                    'K': 1000,
+                    '千': 1000,
+                }.get(match.group(2), 1)
+                damage = int(match.group(1)) * unit
+                behalf = match.group(3) and int(match.group(3))
+                previous_day = bool(match.group(4))
+                extra_msg = match.group(5)
             if isinstance(extra_msg, str):
                 extra_msg = extra_msg.strip()
                 if not extra_msg:

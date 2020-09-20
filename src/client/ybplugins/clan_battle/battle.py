@@ -46,6 +46,7 @@ class ClanBattle:
         '查刀': 9,
         '预约': 10,
         '挂树': 11,
+        '上树': 11,
         '申请': 12,
         '锁定': 12,
         '取消': 13,
@@ -54,6 +55,8 @@ class ClanBattle:
         '后台': 15,
         'sl': 16,
         'SL': 16,
+        'sL': 16,
+        'Sl': 16,
         '查树': 20,
         '查1': 21,
         '查2': 22,
@@ -1023,9 +1026,10 @@ class ClanBattle:
         today, _ = pcr_datetime(group.game_server)
         if only_check:
             return (membership.last_save_slot == today)
+        nik = self._get_nickname_by_qqid(qqid)
         if todaystatus:
             if membership.last_save_slot == today:
-                raise UserError('今天已经存在SL记录了')
+                raise UserError(nik + '今天已经存在SL记录了')
             membership.last_save_slot = today
 
             # 如果当前正在挑战，则取消挑战
@@ -1040,7 +1044,7 @@ class ClanBattle:
             ).execute()
         else:
             if membership.last_save_slot != today:
-                raise UserError('今天没有SL记录')
+                raise UserError(nik + '今天没有SL记录')
             membership.last_save_slot = 0
         membership.save()
 
@@ -1257,20 +1261,37 @@ class ClanBattle:
         elif match_num == 4:  # 报刀
             match = re.match(
                 r'^报刀 ?(\d+)([Ww万Kk千])? *(?:\[CQ:at,qq=(\d+)\])? *(昨[日天])? *(?:[\:：](.*))?$', cmd)
+            match2 = re.match(
+                r'^报刀 ?(?:\[CQ:at,qq=(\d+)\])? *(\d+)([Ww万Kk千])? *(昨[日天])? *(?:[\:：](.*))?$', cmd)
             if not match:
-                return
-            unit = {
-                'W': 10000,
-                'w': 10000,
-                '万': 10000,
-                'k': 1000,
-                'K': 1000,
-                '千': 1000,
-            }.get(match.group(2), 1)
-            damage = int(match.group(1)) * unit
-            behalf = match.group(3) and int(match.group(3))
-            previous_day = bool(match.group(4))
-            extra_msg = match.group(5)
+                if not match2:
+                    return
+                else:
+                    unit = {
+                        'W': 10000,
+                        'w': 10000,
+                        '万': 10000,
+                        'k': 1000,
+                        'K': 1000,
+                        '千': 1000,
+                    }.get(match2.group(3), 1)
+                    damage = int(match2.group(2)) * unit
+                    behalf = match2.group(1) and int(match2.group(1))
+                    previous_day = bool(match2.group(4))
+                    extra_msg = match2.group(5)
+            else:
+                unit = {
+                    'W': 10000,
+                    'w': 10000,
+                    '万': 10000,
+                    'k': 1000,
+                    'K': 1000,
+                    '千': 1000,
+                }.get(match.group(2), 1)
+                damage = int(match.group(1)) * unit
+                behalf = match.group(3) and int(match.group(3))
+                previous_day = bool(match.group(4))
+                extra_msg = match.group(5)
             if isinstance(extra_msg, str):
                 extra_msg = extra_msg.strip()
                 if not extra_msg:
@@ -1376,20 +1397,27 @@ class ClanBattle:
             _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
             return '预约成功'
         elif match_num == 11:  # 挂树
-            match = re.match(r'^挂树 *((伤害)* *\d+[wWkK万]?)? *(?:\[CQ:at,qq=(\d+)\])? *(?:[\:：](.*))?$', cmd)
+            match = re.match(r'^[挂上]树 *((伤害)* *\d+[wWkK万]?)? *(?:\[CQ:at,qq=(\d+)\])? *(?:[\:：](.*))?$', cmd)
+            match2 = re.match(r'^[挂上]树 *(?:\[CQ:at,qq=(\d+)\])? *((伤害)* *\d+[wWkK万]?)? *(?:[\:：](.*))?$', cmd)
             if not match:
-                return
-            behalf = match.group(3) and int(match.group(3))
+                if not match2:
+                    return
+                else:
+                    behalf = match2.group(1) and int(match2.group(1))
+                    extra_msg = match2.group(4)
+                    dmage_msg = match2.group(2)
+            else:
+                behalf = match.group(3) and int(match.group(3))
+                extra_msg = match.group(4)
+                dmage_msg = match.group(1)
             if behalf is not None:
                 qqid = behalf
             else:
                 qqid = user_id
-            extra_msg = match.group(4)
             if isinstance(extra_msg, str):
                 extra_msg = extra_msg.strip()
                 if not extra_msg:
                     extra_msg = None
-            dmage_msg = match.group(1)
             try:
                 if dmage_msg:
                     dmage_msg = dmage_msg.replace('伤害', '').replace(' ', '')
@@ -1477,21 +1505,27 @@ class ClanBattle:
             )
             return f'公会战面板：\n{url}\n建议添加到浏览器收藏夹或桌面快捷方式'
         elif match_num == 16:  # SL
-            if len(cmd) == 2:
+            match = re.search(r'[sl|SL|sL|Sl] *[\?|？]? *(?:\[CQ:at,qq=(\d+)\]) *$', cmd)
+            if match:
+                qqid = match.group(1) and int(match.group(1))
+            else:
+                qqid = user_id
+            nik = self._get_nickname_by_qqid(qqid)
+            if len(cmd) == 2 or re.search(r'[sl|SL|sL|Sl] *(?:\[CQ:at,qq=(\d+)\]) *$', cmd):
                 try:
-                    self.save_slot(group_id, user_id)
+                    self.save_slot(group_id, qqid)
                 except ClanBattleError as e:
                     _logger.info('群聊 失败 {} {} {}'.format(
-                        user_id, group_id, cmd))
+                        qqid, group_id, cmd))
                     return str(e)
-                _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
-                return '已记录SL'
-            elif cmd[2:].strip() in ['?', '？']:
-                sl_ed = self.save_slot(group_id, user_id, only_check=True)
+                _logger.info('群聊 成功 {} {} {}'.format(qqid, group_id, cmd))
+                return nik + '已记录SL，如有挂树则已下树'
+            elif cmd[2:].strip() in ['?', '？'] or match:
+                sl_ed = self.save_slot(group_id, qqid, only_check=True)
                 if sl_ed:
-                    return '今日已使用SL'
+                    return nik + '今日已使用SL'
                 else:
-                    return '今日未使用SL'
+                    return nik + '今日未使用SL'
         elif 20 <= match_num <= 25:
             if len(cmd) != 2:
                 return
@@ -1502,13 +1536,36 @@ class ClanBattle:
             reply = beh+'人数' + str(len(subscribers)) + '：'
             if match_num == 20:
                 dmage = 0
+                name_list = []
+                dmage_list = []
+                message_list = []
                 for m in subscribers:
-                    reply += '\n'+self._get_nickname_by_qqid(m['qqid'])
+                    name_list.append(self._get_nickname_by_qqid(m['qqid']))
                     if m.get('message'):
+                        message_list.append(m['message'])
                         match = re.match(r'^伤害([0-9]+)($|：(.*))', m['message'])
                         if match:
                             dmage += int(match.group(1))
-                        reply += m['message']
+                            dmage_list.append(int(match.group(1)))
+                        else:
+                            dmage_list.append(0)
+                    else:
+                        message_list.append('')
+                        dmage_list.append(0)
+                for i in range(len(name_list) - 1):
+                    for j in range(len(name_list) - i - 1):
+                        if (dmage_list[j] < dmage_list[j + 1]):
+                            temp = dmage_list[j]
+                            dmage_list[j] = dmage_list[j + 1]
+                            dmage_list[j + 1] = temp
+                            temp2 = name_list[j]
+                            name_list[j] = name_list[j + 1]
+                            name_list[j + 1] = temp2
+                            temp2 = message_list[j]
+                            message_list[j] = message_list[j + 1]
+                            message_list[j + 1] = temp2
+                for i in range(len(name_list)):
+                    reply += '\n' + name_list[i] + message_list[i]
                 reply = '全树伤害' + str(dmage) + '，' + reply
             else:
                 for m in subscribers:

@@ -1398,19 +1398,26 @@ class ClanBattle:
             return '预约成功'
         elif match_num == 11:  # 挂树
             match = re.match(r'^[挂上]树 *((伤害)* *\d+[wWkK万]?)? *(?:\[CQ:at,qq=(\d+)\])? *(?:[\:：](.*))?$', cmd)
+            match2 = re.match(r'^[挂上]树 *(?:\[CQ:at,qq=(\d+)\])? *((伤害)* *\d+[wWkK万]?)? *(?:[\:：](.*))?$', cmd)
             if not match:
-                return
-            behalf = match.group(3) and int(match.group(3))
+                if not match2:
+                    return
+                else:
+                    behalf = match2.group(1) and int(match2.group(1))
+                    extra_msg = match2.group(4)
+                    dmage_msg = match2.group(2)
+            else:
+                behalf = match.group(3) and int(match.group(3))
+                extra_msg = match.group(4)
+                dmage_msg = match.group(1)
             if behalf is not None:
                 qqid = behalf
             else:
                 qqid = user_id
-            extra_msg = match.group(4)
             if isinstance(extra_msg, str):
                 extra_msg = extra_msg.strip()
                 if not extra_msg:
                     extra_msg = None
-            dmage_msg = match.group(1)
             try:
                 if dmage_msg:
                     dmage_msg = dmage_msg.replace('伤害', '').replace(' ', '')
